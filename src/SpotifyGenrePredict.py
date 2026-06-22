@@ -1,10 +1,17 @@
+# train_genre_model.py
+# Requirements: pandas, numpy, scikit-learn, matplotlib, seaborn
+#
+# Run from any directory — the script locates dataset.csv relative to itself:
+#   python src/train_genre_model.py
+# Output: confusion_matrix.png written next to this script.
+
 from __future__ import annotations
 
 import warnings
 from pathlib import Path
 
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use("Agg")  # headless rendering; no display required
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -21,19 +28,17 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*lbfgs.*")
 
-#File paths
+# ── paths (resolved relative to this file so cwd doesn't matter) ──────────────
 _HERE = Path(__file__).parent
 DATA_PATH = _HERE.parent / "dataset.csv"
 CM_PATH   = _HERE / "confusion_matrix.png"
 
-# Columuns to keep
+# ── columns ───────────────────────────────────────────────────────────────────
 FEATURE_COLS = [
     "danceability", "energy", "loudness", "speechiness", "acousticness",
     "instrumentalness", "liveness", "valence", "tempo", "duration_ms",
     "key", "mode", "time_signature", "explicit",
 ]
-
-# Columns to drop
 DROP_COLS = [
     "Unnamed: 0", "track_id", "artists", "album_name", "track_name", "popularity",
 ]
@@ -121,7 +126,9 @@ GENRE_MAP: dict[str, str] = {
 }                                             #   (indie-pop already maps to pop)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 1. LOAD & CLEAN
+# ─────────────────────────────────────────────────────────────────────────────
 def load_and_clean(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     sep = "=" * 60
@@ -163,7 +170,9 @@ def load_and_clean(path: Path) -> pd.DataFrame:
     return df
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 2. GENRE GROUPING
+# ─────────────────────────────────────────────────────────────────────────────
 def apply_genre_grouping(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -194,7 +203,9 @@ def apply_genre_grouping(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 3. BUILD X / y
+# ─────────────────────────────────────────────────────────────────────────────
 def build_Xy(
     df: pd.DataFrame,
 ) -> tuple[np.ndarray, np.ndarray, LabelEncoder]:
@@ -204,7 +215,9 @@ def build_Xy(
     return X, y, le
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 4 & 5. SPLIT + SCALE
+# ─────────────────────────────────────────────────────────────────────────────
 def split_and_scale(
     X: np.ndarray, y: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler]:
@@ -218,7 +231,9 @@ def split_and_scale(
     return X_train, X_test, y_train, y_test, scaler
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 6. FIT MODEL
+# ─────────────────────────────────────────────────────────────────────────────
 def train_model(
     X_train: np.ndarray, y_train: np.ndarray
 ) -> LogisticRegression:
@@ -270,7 +285,17 @@ def train_random_forest(X_train: np.ndarray, y_train: np.ndarray):
     return model
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 6b. LEAST-SQUARES CLASSIFIER VIA DIRECT NUMERICAL METHODS
+# ─────────────────────────────────────────────────────────────────────────────
+# Classification reframed as least squares:
+#   - one-hot encode the k genres into an indicator matrix  Y  (n x k)
+#   - fit  min_B || X_aug B - Y ||^2   (k regressions at once; X_aug has an
+#     intercept column of ones)
+#   - predict a song's genre = argmax over its k fitted scores
+# This is the multiclass extension of the popularity OLS, so the SAME three
+# decompositions solve it. Gaussian/LU work on the normal equations X^T X B =
+# X^T Y; QR factors X directly and never forms X^T X (better conditioning).
 
 def _gaussian_elimination(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """Solve A X = B by Gaussian elimination with partial pivoting (from scratch).
@@ -370,7 +395,9 @@ def train_least_squares_methods(X_train, y_train) -> dict:
     return models
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 7. EVALUATE
+# ─────────────────────────────────────────────────────────────────────────────
 def evaluate(
     model,
     X_test: np.ndarray,
@@ -437,7 +464,9 @@ def evaluate(
     return cm, class_names, acc, report_dict
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 8. TOP CONFUSED PAIRS
+# ─────────────────────────────────────────────────────────────────────────────
 def print_top_confused(
     cm: np.ndarray,
     class_names: np.ndarray,
@@ -464,7 +493,9 @@ def print_top_confused(
         print(f"  {class_names[r]:<20} {class_names[c]:<20} {count:>7}   {pct:>8.1f}%")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # WEAKEST CLASSES HELPER
+# ─────────────────────────────────────────────────────────────────────────────
 def weakest_classes(
     report_dict: dict,
     class_names: np.ndarray,
@@ -482,7 +513,9 @@ def weakest_classes(
     return rows[:n]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN
+# ─────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     df = load_and_clean(DATA_PATH)
     df = apply_genre_grouping(df)
