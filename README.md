@@ -1,6 +1,56 @@
-# SpotifyModel_LR
+# Spotify Genre Classification
 
-## About
+Predicting a track's musical genre from its audio features (danceability, energy,
+loudness, tempo, valence, etc.), framed as a numerical-methods project: genre
+classification is solved as a least-squares problem using the same matrix
+decompositions — **Gaussian elimination, LU, and QR** — applied to ordinary linear
+regression.
 
-This paper presents the application of numerical methods in the training of a linear regression model to predict song popularity on Spotify. The study uses a dataset containing musical features such as danceability, energy, loudness, acousticness, instrumentalness, valence, and tempo, along with a target variable corresponding to each song’s popularity. The methodology consists of formulating the machine learning problem as a supervised linear regression model, where training is interpreted as finding the coefficients that minimize the error between the actual and predicted popularity values. To compute these coefficients, the problem is expressed through least squares and solved using three numerical methods: Gaussian elimination, LU factorization, and QR factorization. The results show that…. It is concluded that….
-Keywords: Linear regression, LU factorization, machine learning, numerical methods, QR factorization.
+## Dataset
+
+~114,000 Spotify tracks with 14 numeric audio features and a `track_genre` label.
+The raw 114 genres are noisy (a mix of true genres, moods, and languages), so they
+are consolidated down to ~21 clean classes:
+
+- **Merged** related styles into umbrella genres (e.g. all metal subgenres → `metal`,
+  the Japanese pop/rock/idol cluster → `j_music`, reggae/dancehall/ska → `reggae_ska`).
+- **Dropped** labels that audio features cannot learn — language/nationality tags
+  (`french`, `german`, …) and, optionally, mood tags (`happy`, `study`, …), since
+  these describe feel or origin rather than musical style.
+
+## Approach
+
+The task is multiclass classification. Three models are trained and compared on the
+same stratified train/test split with standardized features:
+
+1. **Least-squares classifier (numerical-methods core).** The genres are one-hot
+   encoded into an indicator matrix `Y`, and the system `X·B = Y` is solved three
+   ways — Gaussian elimination and LU (via the normal equations `XᵀX·B = XᵀY`) and
+   QR (factoring `X` directly). Prediction is the genre with the highest fitted score
+   (`argmax`). The script also reports `cond(X)` vs `cond(XᵀX)` to show why QR is the
+   most numerically reliable: forming `XᵀX` squares the condition number, while QR
+   avoids it.
+2. **Logistic regression** — the standard linear classifier, fit iteratively.
+3. **Random forest** — a nonlinear baseline that captures curved decision boundaries
+   the linear models cannot.
+
+The comparison spans three rungs of model complexity, with the direct decomposition
+methods as the foundation. As expected, the least-squares and logistic models hit a
+similar linear ceiling, while the random forest clears it.
+
+## Usage
+
+```bash
+pip install pandas numpy scikit-learn matplotlib seaborn scipy
+python train_genre_model.py
+```
+
+Toggles at the top of `train_genre_model.py` control the genre grouping, which labels
+to drop, class weighting, and which models to run.
+
+## Outputs
+
+- Per-model test accuracy and per-class precision/recall/F1
+- Confusion matrices (`confusion_matrix_logreg.png`, `confusion_matrix_rf.png`,
+  `confusion_matrix_leastsq_qr.png`)
+- Top confused class pairs and the conditioning report for the three solvers
