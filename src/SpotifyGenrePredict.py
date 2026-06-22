@@ -1,10 +1,3 @@
-# train_genre_model.py
-# Requirements: pandas, numpy, scikit-learn, matplotlib, seaborn
-#
-# Run from any directory — the script locates dataset.csv relative to itself:
-#   python src/train_genre_model.py
-# Output: confusion_matrix.png written next to this script.
-
 from __future__ import annotations
 
 import warnings
@@ -28,17 +21,19 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=".*lbfgs.*")
 
-# ── paths (resolved relative to this file so cwd doesn't matter) ──────────────
+#File paths
 _HERE = Path(__file__).parent
 DATA_PATH = _HERE.parent / "dataset.csv"
 CM_PATH   = _HERE / "confusion_matrix.png"
 
-# ── columns ───────────────────────────────────────────────────────────────────
+# Columuns to keep
 FEATURE_COLS = [
     "danceability", "energy", "loudness", "speechiness", "acousticness",
     "instrumentalness", "liveness", "valence", "tempo", "duration_ms",
     "key", "mode", "time_signature", "explicit",
 ]
+
+# Columns to drop
 DROP_COLS = [
     "Unnamed: 0", "track_id", "artists", "album_name", "track_name", "popularity",
 ]
@@ -276,15 +271,6 @@ def train_random_forest(X_train: np.ndarray, y_train: np.ndarray):
 
 
 # 6b. LEAST-SQUARES CLASSIFIER VIA DIRECT NUMERICAL METHODS
-
-# Classification reframed as least squares:
-#   - one-hot encode the k genres into an indicator matrix  Y  (n x k)
-#   - fit  min_B || X_aug B - Y ||^2   (k regressions at once; X_aug has an
-#     intercept column of ones)
-#   - predict a song's genre = argmax over its k fitted scores
-# This is the multiclass extension of the popularity OLS, so the SAME three
-# decompositions solve it. Gaussian/LU work on the normal equations X^T X B =
-# X^T Y; QR factors X directly and never forms X^T X (better conditioning).
 
 def _gaussian_elimination(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     """Solve A X = B by Gaussian elimination with partial pivoting (from scratch).
